@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pastebin-storage-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pastebin-config
+data:
+  PORT: "3000"
+  URL: "0.0.0.0"               # Změněno z 127.0.0.1, aby kontejner přijímal provoz ze sítě K8s
+  MAX_PASTES: "100"
+  MAX_PASTE_SIZE: "1048576"
+  MAX_FILE_SIZE: "20971520"
+  # S3 konfigurace:
+  S3_ENDPOINT: "https://s3.mmik.cz/"
+  S3_BUCKET: "onre-test"
+  S3_REGION: "garage"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pastebin-deployment         # Název samotného Deploymentu
+  labels:
+    app: pastebin-backend           # Organizační štítek (metadata) pro samotný Deployment objekt
+spec:
+  replicas: 3                       # Počet identických Podů, které mají běžet
+  selector:
+    matchLabels:
+      app: pastebin-app             # Deployment hlídá Pody s tímto štítkem
+  template:                         # --- ODSAĎ DOLŮ JE ŠABLONA PRO PODY ---
+    metadata:
+      labels:
+        app: pastebin-app           # Tento štítek dostane každý nově vytvořený Pod
+    spec:
+      volumes:
+      - name: pastebin-volume       # Libovolný název svazku v rámci Podu
+        persistentVolumeClaim:
+          claimName: pastebin-storage-pvc  # <-- stejné jako metadata.name PVC!
+      containers:
+      - name: pastebin-kontejner    # Jméno kontejneru v Podu
+        image: ghcr.io/onre739/pastebin:sha-eecba39       # Docker image (např. z Docker Hubu nebo privátního registru)
+        ports:
+        - containerPort: 3000       # Port, na kterém aplikace uvnitř kontejneru naslouchá
+        envFrom:
+        - configMapRef:
+            name: pastebin-config
+        - secretRef:
+            name: s3-credentials
+        volumeMounts:
+        - name: pastebin-volume     # <-- stejné jako název volumes[].name výše
+          mountPath: /app/uploads
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: pastebin-service                 # Název interního DNS
+spec:
+  type: ClusterIP                        # Pouze interní síť, ven to vystaví Ingress
+  selector:
+    app: pastebin-app                    # Service posílá provoz na Pody s tímto štítkem
+  ports:
+    - protocol: TCP
+      port: 80                           # Port, na kterém naslouchá Service
+      targetPort: 3000                   # Port v kontejneru, kam provoz přepošle
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pastebin-ingress
+spec:
+  rules:
+  - host: pastebin.local                 # Doména, kterou jsi nastavil v hosts C:\Windows\System32\drivers\etc\hosts
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pastebin-service
+            port:
+              number: 80
