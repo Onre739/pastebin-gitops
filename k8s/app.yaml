@@ -50,7 +50,7 @@ spec:
           claimName: pastebin-storage-pvc  # <-- stejné jako metadata.name PVC!
       containers:
       - name: pastebin-kontejner    # Jméno kontejneru v Podu
-        image: ghcr.io/onre739/pastebin:sha-eecba39       # Docker image (např. z Docker Hubu nebo privátního registru)
+        image: ghcr.io/onre739/pastebin:sha-fbfb295       # Docker image (např. z Docker Hubu nebo privátního registru)
         ports:
         - containerPort: 3000       # Port, na kterém aplikace uvnitř kontejneru naslouchá
         envFrom:
