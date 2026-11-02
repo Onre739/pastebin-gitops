@@ -35,7 +35,7 @@ metadata:
   labels:
     app: pastebin-backend           # Organizační štítek (metadata) pro samotný Deployment objekt
 spec:
-  replicas: 5                       # Počet identických Podů, které mají běžet
+  replicas: 3                       # Počet identických Podů, které mají běžet
   selector:
     matchLabels:
       app: pastebin-app             # Deployment hlídá Pody s tímto štítkem
